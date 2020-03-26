@@ -8,7 +8,7 @@ import itertools
 import numpy as np
 import shapely.geometry
 import shapely.ops
-import Polygon as PolygonLib	# TODO remove dependency (see triangulatePolygon)
+import p2t
 
 from scenic.core.distributions import (needsSampling, distributionFunction,
                                        monotonicDistributionFunction)
@@ -172,20 +172,22 @@ def cleanChain(chain, tolerance, angleTolerance=0.008):
 	return newChain
 
 def triangulatePolygon(polygon):
-	# TODO replace with another library!
-	# N.B. can't use shapely.ops.triangulate since it doesn't respect edges
-	poly = PolygonLib.Polygon(polygon.exterior.coords)
-	for interior in polygon.interiors:
-		poly.addContour(interior.coords, True)
-	tristrips = poly.triStrip()
-	triangles = []
-	for strip in tristrips:
-		a, b = strip[:2]
-		for c in strip[2:]:
-			tri = shapely.geometry.Polygon((a, b, c))
-			triangles.append(tri)
-			a = b
-			b = c
+	# N.B. The precision of poly2tri isn't good enough to pass
+	# current test_triangulation_hole_2 test case
+	scale=10.0
+	polyline = []
+	for c in polygon.exterior.coords[:-1]:
+		polyline.append(p2t.Point(scale*c[0],scale*c[1]))
+	cdt = p2t.CDT(polyline)
+	polyline = []
+	for i in polygon.interiors:
+		for c in i.coords[:-1]:
+			polyline.append(p2t.Point(scale*c[0],scale*c[1]))
+		cdt.add_hole(polyline)
+	triangles = list()
+
+	for t in cdt.triangulate():
+		triangles.append(shapely.geometry.Polygon([(t.a.x/scale, t.a.y/scale), (t.b.x/scale, t.b.y/scale), (t.c.x/scale, t.c.y/scale)]))
 	return triangles
 
 def plotPolygon(polygon, plt, style='r-'):
