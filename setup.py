@@ -15,7 +15,6 @@ setup(name='scenic',
           'opencv-python',
           'pillow',
           'shapely', # had to separately install via conda install shapely
-          'Polygon3',
       ],
       extras_require={
         'pyproj': ['pyproj'], # issue on Windows with Anaconda

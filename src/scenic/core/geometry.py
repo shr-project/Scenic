@@ -8,7 +8,6 @@ import itertools
 import numpy as np
 import shapely.geometry
 import shapely.ops
-import Polygon as PolygonLib	# TODO remove dependency (see triangulatePolygon)
 
 from scenic.core.distributions import (needsSampling, distributionFunction,
                                        monotonicDistributionFunction)
@@ -172,20 +171,14 @@ def cleanChain(chain, tolerance, angleTolerance=0.008):
 	return newChain
 
 def triangulatePolygon(polygon):
-	# TODO replace with another library!
-	# N.B. can't use shapely.ops.triangulate since it doesn't respect edges
-	poly = PolygonLib.Polygon(polygon.exterior.coords)
-	for interior in polygon.interiors:
-		poly.addContour(interior.coords, True)
-	tristrips = poly.triStrip()
-	triangles = []
-	for strip in tristrips:
-		a, b = strip[:2]
-		for c in strip[2:]:
-			tri = shapely.geometry.Polygon((a, b, c))
-			triangles.append(tri)
-			a = b
-			b = c
+	# N.B. shapely.ops.triangulate uses all vertices:
+	# https://shapely.readthedocs.io/en/latest/manual.html#delaunay-triangulation
+	# The source may be any geometry type. All vertices of the geometry will be used as the points of the triangulation.
+	#
+	# Some of the returned triangles cover the holes, we need to remove them
+	triangles = shapely.ops.triangulate(polygon)
+	for i in polygon.interiors:
+		triangles = list(filter(lambda t: not t.within(shapely.geometry.Polygon(i)), triangles))
 	return triangles
 
 def plotPolygon(polygon, plt, style='r-'):
